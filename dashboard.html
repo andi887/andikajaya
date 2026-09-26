@@ -21,12 +21,9 @@
 
   <!-- TAB NAVIGATION -->
   <nav class="tab-nav">
-    <!-- TAB ADMIN ONLY -->
     <button class="tab-btn admin-only" data-tab="buat-user">👤 Buat User</button>
     <button class="tab-btn admin-only" data-tab="input-nota">📝 Input Nota</button>
-    
-    <!-- TAB SEMUA ROLE -->
-    <button class="tab-btn active" data-tab="nota-saya">📄 Nota</button>
+    <button class="tab-btn active" data-tab="nota-saya">📄 Daftar Nota</button>
     <button class="tab-btn" data-tab="rekap">📊 Rekap</button>
     <button class="tab-btn" data-tab="chat">💬 Live Chat</button>
   </nav>
@@ -76,8 +73,6 @@
     <section id="tab-input-nota" class="tab-content admin-only">
       <div class="card">
         <h2>Input Nota Pembelian</h2>
-
-        <!-- KOP NOTA -->
         <div class="kop-nota">
           <h3>ANDIKA JAYA</h3>
           <p>Jl. Poros Pomako, Mimika Timur, Papua</p>
@@ -99,7 +94,6 @@
             </div>
           </div>
 
-          <!-- TABEL ITEM DINAMIS -->
           <h4 style="margin:20px 0 10px;">Daftar Barang</h4>
           <div class="table-responsive">
             <table id="tableItems" class="table-formal">
@@ -131,35 +125,33 @@
       </div>
     </section>
 
-    <!-- TAB: NOTA (SEMUA ROLE - data disesuaikan) -->
+    <!-- TAB: DAFTAR NOTA (SEMUA ROLE) -->
     <section id="tab-nota-saya" class="tab-content active">
       <div class="card">
         <h2 id="notaTitle">Daftar Nota</h2>
-        
         <div class="table-responsive">
           <table id="tableNotas" class="table-formal">
             <thead>
               <tr>
                 <th style="width:40px;">No</th>
                 <th>Tanggal</th>
-                <th id="thUser">User</th>
-                <th>Jumlah Item</th>
+                <th class="col-user">User</th>
                 <th>Total Nota (Rp)</th>
-                <th style="width:120px;">Aksi</th>
+                <th style="width:150px;">Aksi</th>
               </tr>
             </thead>
             <tbody>
-              <tr><td colspan="6" style="text-align:center;">Memuat data...</td></tr>
+              <tr><td colspan="5" style="text-align:center;">Memuat data...</td></tr>
             </tbody>
           </table>
         </div>
       </div>
 
-      <!-- DETAIL NOTA -->
+      <!-- DETAIL NOTA (Sesuai Blueprint) -->
       <div id="notaDetailWrapper" class="card" style="display:none;">
         <div class="nota-actions-top">
           <button id="btnBackToList" class="btn-secondary">← Kembali</button>
-          <button id="btnPrintNota" class="btn-primary" style="width:auto;padding:10px 20px;">🖨️ Cetak</button>
+          <button id="btnPrintNota" class="btn-primary" style="width:auto;padding:10px 20px;">️ Cetak</button>
         </div>
 
         <div id="notaPrintArea" class="nota-print-area">
@@ -177,6 +169,7 @@
               <thead>
                 <tr>
                   <th style="width:40px;">No</th>
+                  <th>Tanggal</th>
                   <th>Nama Ikan / Udang</th>
                   <th>Berat (Kg)</th>
                   <th>Harga/Kg (Rp)</th>
@@ -186,7 +179,7 @@
               <tbody></tbody>
               <tfoot>
                 <tr>
-                  <th colspan="4" style="text-align:right;">TOTAL KESELURUHAN:</th>
+                  <th colspan="5" style="text-align:right;">TOTAL KESELURUHAN:</th>
                   <th id="notaTotalDetail">Rp 0</th>
                 </tr>
               </tfoot>
@@ -202,7 +195,7 @@
       </div>
     </section>
 
-    <!-- TAB: REKAP (SEMUA ROLE - data disesuaikan) -->
+    <!-- TAB: REKAP (SEMUA ROLE) -->
     <section id="tab-rekap" class="tab-content">
       <div class="card">
         <h2 id="rekapTitle">Rekap</h2>
@@ -221,7 +214,6 @@
           </div>
         </div>
 
-        <!-- Tabel rekap per user (ADMIN ONLY) -->
         <div id="rekapPerUserWrapper" class="admin-only">
           <h3 style="margin-top:30px;">Rekap Per User</h3>
           <div class="table-responsive">
