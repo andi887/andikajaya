@@ -138,3 +138,7 @@ body { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); min-height
   #notaPrintArea .table-formal tfoot th { background: #f5f5f5 !important; color: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .nota-actions-top, .tab-nav, .app-header, .card:not(#notaDetailWrapper) { display: none !important; }
 }
+
+/* FIX V2.1 - Admin tabs */
+.admin-only.show { display: block !important; }
+.tab-btn.admin-only.show { display: inline-block !important; }
