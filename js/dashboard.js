@@ -11,8 +11,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 // ===== UTILITAS =====
-const formatRupiah = (angka) =>
-  'Rp ' + (angka || 0).toLocaleString('id-ID');
+const formatRupiah = (angka) => 'Rp ' + (angka || 0).toLocaleString('id-ID');
 
 const formatTanggal = (timestamp) => {
   if (!timestamp) return '-';
@@ -39,10 +38,11 @@ const JENIS_BARANG = [
   'Sarisi', 'Lajur', 'Lasi', 'Toki', 'Tenggiri', 'Udang Tiger', 'Udang Biasa'
 ];
 
-// ===== GUARD: CEK AUTENTIKASI =====
+// ===== STATE GLOBAL =====
 let currentUser = null;
 let currentUserData = null;
 
+// ===== GUARD & INIT =====
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
     window.location.href = 'index.html';
@@ -52,7 +52,7 @@ onAuthStateChanged(auth, async (user) => {
   try {
     const userDoc = await getDoc(doc(db, 'users', user.uid));
     if (!userDoc.exists()) {
-      alert('Akun tidak terdaftar.');
+      alert('Akun tidak terdaftar di sistem.');
       await signOut(auth);
       window.location.href = 'index.html';
       return;
@@ -60,8 +60,6 @@ onAuthStateChanged(auth, async (user) => {
 
     currentUser = user;
     currentUserData = userDoc.data();
-
-    // Setup UI berdasarkan role
     setupDashboard();
   } catch (err) {
     console.error(err);
@@ -69,41 +67,40 @@ onAuthStateChanged(auth, async (user) => {
   }
 });
 
-// ===== SETUP DASHBOARD BERDASARKAN ROLE =====
 function setupDashboard() {
   const isAdmin = currentUserData.role === 'admin';
 
-  // Update header
   document.getElementById('userName').textContent = currentUserData.name || 'User';
-  document.getElementById('headerSubtitle').textContent = 
-    isAdmin ? 'Panel Administrator' : 'Dashboard Pembeli / Supplier';
+  document.getElementById('headerSubtitle').textContent = isAdmin ? 'Panel Administrator' : 'Dashboard Pembeli / Supplier';
 
-  // Show/hide tab admin-only
+  // Show/Hide elemen admin-only
   document.querySelectorAll('.admin-only').forEach(el => {
     el.style.display = isAdmin ? '' : 'none';
   });
 
-  // Update judul tab nota & rekap
+  // Show/Hide kolom User di tabel daftar nota
+  document.querySelectorAll('.col-user').forEach(el => {
+    el.style.display = isAdmin ? '' : 'none';
+  });
+
+  // Update Judul
   if (isAdmin) {
     document.getElementById('notaTitle').textContent = 'Semua Nota Pembelian';
-    document.getElementById('thUser').style.display = '';
     document.getElementById('rekapTitle').textContent = 'Rekap Keseluruhan';
     document.getElementById('rekapGrandTotalLabel').textContent = 'Grand Total (Rp)';
   } else {
     document.getElementById('notaTitle').textContent = 'Nota Pembelian Saya';
-    document.getElementById('thUser').style.display = 'none';
     document.getElementById('rekapTitle').textContent = 'Rekap Pembelian Saya';
     document.getElementById('rekapGrandTotalLabel').textContent = 'Total Nominal Saya';
   }
 
-  // Init semua fitur
+  // Inisialisasi Fitur
   initTabNavigation();
   initLogout();
   loadNotas();
   loadRekap();
   initChat();
 
-  // Fitur admin only
   if (isAdmin) {
     initCreateUser();
     loadUsersTable();
@@ -161,9 +158,7 @@ function initCreateUser() {
       loadUsersDropdown();
     } catch (err) {
       console.error(err);
-      msg.textContent = err.code === 'auth/email-already-in-use'
-        ? 'Email sudah terdaftar.'
-        : 'Gagal: ' + err.message;
+      msg.textContent = err.code === 'auth/email-already-in-use' ? 'Email sudah terdaftar.' : 'Gagal: ' + err.message;
       msg.className = 'message error';
     }
   });
@@ -246,8 +241,7 @@ function updateRowNumbers() {
 function calcRow(row) {
   const qty = parseFloat(row.querySelector('.input-qty').value) || 0;
   const harga = parseFloat(row.querySelector('.input-harga').value) || 0;
-  const subtotal = qty * harga;
-  row.querySelector('.cell-subtotal').textContent = formatRupiah(subtotal);
+  row.querySelector('.cell-subtotal').textContent = formatRupiah(qty * harga);
   calcTotal();
 }
 
@@ -266,10 +260,10 @@ async function submitNota(e) {
   e.preventDefault();
   const msg = document.getElementById('notaMessage');
   const userId = document.getElementById('notaUser').value;
-  const userName = document.getElementById('notaUser').selectedOptions[0].dataset.name;
+  const userName = document.getElementById('notaUser').selectedOptions[0]?.dataset.name;
   const tanggalInput = document.getElementById('notaTanggal').value;
 
-  if (!userId) {
+  if (!userId || !userName) {
     msg.textContent = 'Pilih user terlebih dahulu.';
     msg.className = 'message error';
     return;
@@ -277,8 +271,7 @@ async function submitNota(e) {
 
   const rows = document.querySelectorAll('#itemsBody tr');
   const items = [];
-  let totalNota = 0;
-  let totalBerat = 0;
+  let totalNota = 0, totalBerat = 0;
 
   rows.forEach(row => {
     const jenis = row.querySelector('.input-jenis').value;
@@ -303,27 +296,17 @@ async function submitNota(e) {
   msg.className = 'message';
 
   try {
-    const tanggal = new Date(tanggalInput);
-
     await addDoc(collection(db, 'notas'), {
-      userId,
-      userName,
-      tanggal,
-      items,
-      totalNota,
-      createdByAdmin: currentUser.uid,
-      createdAt: serverTimestamp()
+      userId, userName, tanggal: new Date(tanggalInput), items, totalNota,
+      createdByAdmin: currentUser.uid, createdAt: serverTimestamp()
     });
 
     const rekapRef = doc(db, 'rekap', userId);
     await runTransaction(db, async (tx) => {
       const rekapSnap = await tx.get(rekapRef);
-      const current = rekapSnap.exists() ? rekapSnap.data() : {
-        userId, userName, totalTransaksi: 0, totalBeratKg: 0, totalNominal: 0
-      };
+      const current = rekapSnap.exists() ? rekapSnap.data() : { userId, userName, totalTransaksi: 0, totalBeratKg: 0, totalNominal: 0 };
       tx.set(rekapRef, {
-        ...current,
-        userName,
+        ...current, userName,
         totalTransaksi: current.totalTransaksi + 1,
         totalBeratKg: current.totalBeratKg + totalBerat,
         totalNominal: current.totalNominal + totalNota,
@@ -333,7 +316,6 @@ async function submitNota(e) {
 
     msg.textContent = `Nota berhasil disimpan untuk ${userName}. Total: ${formatRupiah(totalNota)}`;
     msg.className = 'message success';
-
     document.getElementById('itemsBody').innerHTML = '';
     addRow();
     calcTotal();
@@ -345,37 +327,35 @@ async function submitNota(e) {
 }
 
 // ==========================================
-// FITUR: NOTA (SEMUA ROLE)
+// FITUR: DAFTAR & DETAIL NOTA (SEMUA ROLE)
 // ==========================================
 function loadNotas() {
   const isAdmin = currentUserData.role === 'admin';
   const tbody = document.querySelector('#tableNotas tbody');
+  const colUserVisible = isAdmin; // Untuk menghitung colspan
 
   let q;
   if (isAdmin) {
     q = query(collection(db, 'notas'), orderBy('tanggal', 'desc'));
   } else {
-    q = query(
-      collection(db, 'notas'),
-      where('userId', '==', currentUser.uid),
-      orderBy('tanggal', 'desc')
-    );
+    q = query(collection(db, 'notas'), where('userId', '==', currentUser.uid), orderBy('tanggal', 'desc'));
   }
 
   onSnapshot(q, (snap) => {
     tbody.innerHTML = '';
     if (snap.empty) {
-      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Belum ada nota.</td></tr>';
+      tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;">Belum ada nota.</td></tr>`;
       return;
     }
     snap.forEach((docSnap, idx) => {
       const n = docSnap.data();
       const tr = document.createElement('tr');
+      
+      // Struktur baris disesuaikan dengan role (Kolom User disembunyikan via CSS jika user biasa)
       tr.innerHTML = `
         <td>${idx + 1}</td>
         <td>${formatTanggalShort(n.tanggal)}</td>
-        ${isAdmin ? `<td>${n.userName}</td>` : ''}
-        <td>${(n.items || []).length}</td>
+        <td class="col-user">${n.userName || '-'}</td>
         <td>${formatRupiah(n.totalNota || 0)}</td>
         <td>
           <button class="btn-view" data-id="${docSnap.id}">Lihat</button>
@@ -385,24 +365,17 @@ function loadNotas() {
       tbody.appendChild(tr);
     });
 
-    tbody.querySelectorAll('.btn-view').forEach(btn => {
-      btn.addEventListener('click', () => showNotaDetail(btn.dataset.id));
-    });
-    tbody.querySelectorAll('.btn-print').forEach(btn => {
-      btn.addEventListener('click', () => showNotaDetail(btn.dataset.id, true));
-    });
+    tbody.querySelectorAll('.btn-view').forEach(btn => btn.addEventListener('click', () => showNotaDetail(btn.dataset.id)));
+    tbody.querySelectorAll('.btn-print').forEach(btn => btn.addEventListener('click', () => showNotaDetail(btn.dataset.id, true)));
   }, (err) => {
     console.error(err);
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:red;">Gagal memuat data.</td></tr>';
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:red;">Gagal memuat data. Cek console.</td></tr>`;
   });
 }
 
 function showNotaDetail(notaId, autoPrint = false) {
   getDoc(doc(db, 'notas', notaId)).then((snap) => {
-    if (!snap.exists()) {
-      alert('Nota tidak ditemukan.');
-      return;
-    }
+    if (!snap.exists()) { alert('Nota tidak ditemukan.'); return; }
     const n = snap.data();
 
     document.getElementById('notaKepada').textContent = n.userName || '-';
@@ -411,12 +384,15 @@ function showNotaDetail(notaId, autoPrint = false) {
     const tbody = document.querySelector('#tableNotaDetail tbody');
     tbody.innerHTML = '';
     let total = 0;
+    
+    // Format Tabel Detail Sesuai Blueprint: No | Tanggal | Nama Ikan/Udang | Berat (Kg) | Harga/Kg | Total
     (n.items || []).forEach((item, i) => {
       const subtotal = (item.qtyKg || 0) * (item.hargaPerKg || 0);
       total += subtotal;
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td>${i + 1}</td>
+        <td>${formatTanggalShort(n.tanggal)}</td>
         <td>${escapeHtml(item.jenis)} - ${escapeHtml(item.namaBarang)}</td>
         <td>${(item.qtyKg || 0).toFixed(2)}</td>
         <td>${formatRupiah(item.hargaPerKg || 0)}</td>
@@ -429,9 +405,7 @@ function showNotaDetail(notaId, autoPrint = false) {
     document.getElementById('notaDetailWrapper').style.display = 'block';
     document.getElementById('notaDetailWrapper').scrollIntoView({ behavior: 'smooth' });
 
-    if (autoPrint) {
-      setTimeout(() => window.print(), 300);
-    }
+    if (autoPrint) setTimeout(() => window.print(), 300);
   }).catch(err => {
     console.error(err);
     alert('Gagal memuat detail nota.');
@@ -443,9 +417,7 @@ document.getElementById('btnBackToList').addEventListener('click', () => {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 });
 
-document.getElementById('btnPrintNota').addEventListener('click', () => {
-  window.print();
-});
+document.getElementById('btnPrintNota').addEventListener('click', () => window.print());
 
 // ==========================================
 // FITUR: REKAP (SEMUA ROLE)
@@ -454,7 +426,6 @@ function loadRekap() {
   const isAdmin = currentUserData.role === 'admin';
 
   if (isAdmin) {
-    // Admin: tampilkan rekap semua user
     onSnapshot(collection(db, 'rekap'), (snap) => {
       const tbody = document.querySelector('#tableRekap tbody');
       tbody.innerHTML = '';
@@ -480,9 +451,7 @@ function loadRekap() {
       document.getElementById('rekapGrandTotal').textContent = formatRupiah(gNominal);
     });
   } else {
-    // User: tampilkan rekap pribadi saja
-    const rekapRef = doc(db, 'rekap', currentUser.uid);
-    onSnapshot(rekapRef, (snap) => {
+    onSnapshot(doc(db, 'rekap', currentUser.uid), (snap) => {
       if (snap.exists()) {
         const r = snap.data();
         document.getElementById('rekapTotalTransaksi').textContent = r.totalTransaksi || 0;
@@ -528,10 +497,7 @@ function initChat() {
     if (!text) return;
     try {
       await addDoc(collection(db, 'chats'), {
-        senderId: currentUser.uid,
-        senderName: currentUserData.name,
-        text,
-        createdAt: serverTimestamp()
+        senderId: currentUser.uid, senderName: currentUserData.name, text, createdAt: serverTimestamp()
       });
       chatInput.value = '';
     } catch (err) {
