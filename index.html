@@ -2,118 +2,41 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>SDN 139 LAMANDA - sdn139lamanda</title>
-  <link rel="stylesheet" href="css/style.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login - ANDIKA JAYA</title>
+  <link rel="stylesheet" href="css/style.css" />
 </head>
-<body>
-  <!-- Header -->
-  <header class="header">
-    <button class="menu-btn">☰</button>
-    <div class="logo-text">SDN<span> 139</span></div>
-    <div style="width: 50px;"></div>
-  </header>
+<body class="login-page">
+  <div class="login-container">
+    <div class="login-card">
+      <div class="login-header">
+        <h1>ANDIKA JAYA</h1>
+        <p class="subtitle">Sistem Nota Pembelian Ikan & Udang</p>
+        <p class="address">Jl. Poros Pomako, Mimika Timur, Papua</p>
+      </div>
 
-  <!-- Main Content -->
-  <div class="container">
-    <h1 class="page-title">Login Untuk Masuk</h1>
-
-    <!-- Login Form -->
-    <div class="login-box">
-      <form id="loginForm">
+      <form id="loginForm" autocomplete="on">
         <div class="form-group">
-          <span class="form-icon">👤</span>
-          <input type="text" class="form-control" placeholder="Username" required>
+          <label for="email">Email</label>
+          <input type="email" id="email" name="email" required placeholder="contoh@email.com" />
         </div>
 
         <div class="form-group">
-          <span class="form-icon">🔒</span>
-          <input type="password" class="form-control" placeholder="Password" required>
+          <label for="password">Password</label>
+          <input type="password" id="password" name="password" required placeholder="Masukkan password" />
         </div>
 
-        <div class="form-group">
-          <div class="captcha-box">
-            <span class="form-icon">🛡️</span>
-            <input type="text" class="form-control" placeholder="Captcha" style="flex: 1;" required>
-            <div class="captcha-image" id="captcha">27855</div>
-            <button type="button" class="refresh-captcha" onclick="refreshCaptcha()">🔄</button>
-          </div>
-        </div>
+        <button type="submit" id="btnLogin" class="btn-primary">MASUK</button>
 
-        <div class="button-group">
-          <button type="button" class="btn btn-secondary" onclick="forgotPassword()">Lupa Password</button>
-          <button type="submit" class="btn btn-primary">Sign In</button>
-        </div>
+        <div id="loginMessage" class="message"></div>
       </form>
-    </div>
 
-    <!-- WAP Version Button -->
-    <a href="#" class="wap-btn">VERSI WAP</a>
-
-    <!-- Promo Banner -->
-    <div class="promo-banner">
-      <div class="promo-title">🎮 SELAMAT DATANG! 🎮</div>
-      <div class="promo-subtitle">
-        MARI PENUHI<br>
-        LAKUKAN<br>
-        YANG BEDA DARI BIASANYA
+      <div class="login-footer">
+        <small>Hubungi Admin jika belum memiliki akun<br/>HP: 085315007433</small>
       </div>
-      <div style="background: #FFD700; color: #000; padding: 8px 20px; border-radius: 20px; display: inline-block; font-weight: bold; margin-top: 10px;">
-        MUDAH SEGALANYA!
-      </div>
-      <a href="#" class="promo-cta">SILAHKAN COBA →</a>
-    </div>
-
-    <!-- Social Media -->
-    <div class="social-section">
-      <div class="social-title">Follow Sosmed Kami Juga :</div>
-      <div class="social-icons">
-        <a href="#" class="social-icon instagram">📷</a>
-        <a href="#" class="social-icon facebook">f</a>
-        <a href="#" class="social-icon telegram">✈️</a>
-        <a href="#" class="social-icon twitter">𝕏</a>
-        <a href="#" class="social-icon youtube">▶️</a>
-        <a href="#" class="social-icon whatsapp">💬</a>
-      </div>
-    </div>
-
-    <!-- Quick Links to Houses -->
-    <div class="login-box" style="margin-top: 20px;">
-      <h3 style="color: #2a5298; margin-bottom: 16px; text-align: center;">🏠 Akses Rumah Utama</h3>
-      <a href="index.html" class="btn btn-primary" style="display: block; margin-bottom: 10px; text-decoration: none; text-align: center;">
-        📊 Rumah Utama (Dashboard)
-      </a>
-      <a href="rumah30.html" class="btn btn-secondary" style="display: block; text-decoration: none; text-align: center;">
-        🚪 Masuk (Rumah 30)
-      </a>
     </div>
   </div>
 
-  <!-- Bottom Navigation -->
-  <nav class="bottom-nav">
-    <a href="#" class="nav-item active">
-      <span class="nav-icon">🏠</span>
-      <span class="nav-label">BERANDA</span>
-    </a>
-    <a href="#" class="nav-item">
-      <span class="nav-icon">✍️</span>
-      <span class="nav-label">DAFTAR</span>
-    </a>
-    <a href="#" class="nav-item">
-      <span class="nav-icon">🎁</span>
-      <span class="nav-label">PROMOSI</span>
-    </a>
-    <a href="#" class="nav-item">
-      <span class="nav-icon">💬</span>
-      <span class="nav-label">LIVECHAT</span>
-    </a>
-  </nav>
-
-  <!-- Loading Overlay -->
-  <div class="loading" id="loading">
-    <div class="spinner"></div>
-  </div>
-
-  <script src="js/script.js"></script>
+  <script type="module" src="js/app.js"></script>
 </body>
 </html>
