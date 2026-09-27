@@ -137,7 +137,8 @@
                 <th>Tanggal</th>
                 <th class="col-user">User</th>
                 <th>Total Nota (Rp)</th>
-                <th style="width:150px;">Aksi</th>
+                <th>Status</th>
+                <th style="width:200px;">Aksi</th>
               </tr>
             </thead>
             <tbody>
@@ -163,6 +164,7 @@
           </div>
           <p class="nota-kepada">Kepada Yth: <strong id="notaKepada">-</strong></p>
           <p class="nota-tanggal">Tanggal: <strong id="notaTanggalDetail">-</strong></p>
+          <p class="nota-tanggal">Status: <strong id="notaStatusDetail">-</strong></p>
 
           <div class="table-responsive">
             <table id="tableNotaDetail" class="table-formal">
@@ -208,8 +210,16 @@
             <span class="summary-label">Total Berat (Kg)</span>
             <span id="rekapTotalBerat" class="summary-value">0</span>
           </div>
+          <div class="summary-item">
+            <span class="summary-label" style="color:#e74c3c;">Belum Lunas</span>
+            <span id="rekapBelumLunas" class="summary-value" style="color:#e74c3c;">0</span>
+          </div>
+          <div class="summary-item">
+            <span class="summary-label" style="color:#27ae60;">Sudah Lunas</span>
+            <span id="rekapLunas" class="summary-value" style="color:#27ae60;">0</span>
+          </div>
           <div class="summary-item highlight">
-            <span class="summary-label" id="rekapGrandTotalLabel">Grand Total (Rp)</span>
+            <span class="summary-label" id="rekapGrandTotalLabel">Sisa Piutang (Rp)</span>
             <span id="rekapGrandTotal" class="summary-value">Rp 0</span>
           </div>
         </div>
