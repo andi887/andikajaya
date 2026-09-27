@@ -53,8 +53,15 @@ body { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); min-height
 .tab-content { display: none; }
 .tab-content.active { display: block; animation: fadeIn 0.3s ease; }
 
-/* ===== ADMIN-ONLY VISIBILITY ===== */
+/* ===== ADMIN-ONLY VISIBILITY - FIX V2.2 ===== */
 .admin-only { display: none; }
+/* Tombol tab admin - hanya show kalau bukan tab-content */
+.tab-btn.admin-only.show { display: inline-block !important; }
+/* Wrapper rekap per user */
+#rekapPerUserWrapper.admin-only.show { display: block !important; }
+/* Tab content admin - harus pakai active + show */
+.tab-content.admin-only { display: none !important; }
+.tab-content.admin-only.show.active { display: block !important; }
 
 /* ===== KOP NOTA ===== */
 .kop-nota { text-align: center; border-bottom: 3px double #1e3c72; padding-bottom: 15px; margin-bottom: 20px; }
@@ -139,6 +146,4 @@ body { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); min-height
   .nota-actions-top, .tab-nav, .app-header, .card:not(#notaDetailWrapper) { display: none !important; }
 }
 
-/* FIX V2.1 - Admin tabs */
-.admin-only.show { display: block !important; }
-.tab-btn.admin-only.show { display: inline-block !important; }
+/* deprecated - replaced by V2.2 above */
