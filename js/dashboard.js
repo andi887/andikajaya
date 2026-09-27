@@ -96,7 +96,7 @@ function initNotaFormFix(){
   if(!itemsBody) return;
   function addRow(){
     const tr=document.createElement('tr');
-    tr.innerHTML=`<td class="row-no"></td><td><select class="input-jenis" required><option value="">Pilih</option>${JENIS_BARANG.map(j=>`<option value="${j}">${j}</option>`).join('')}<option value="Lainnya">Lainnya</option></select></td><td><input type="text" class="input-nama" placeholder="Nama detail" required /></td><td><input type="number" class="input-qty" min="0" step="0.01" value="0" required /></td><td><input type="number" class="input-harga" min="0" step="100" value="0" required /></td><td class="cell-subtotal">${formatRupiah(0)}</td><td><button type="button" class="btn-remove-row">X</button></td>`;
+    tr.innerHTML=`<td class="row-no"></td><td><select class="input-jenis" required><option value="">Pilih</option>${JENIS_BARANG.map(j=>`<option value="${j}">${j}</option>`).join('')}<option value="Lainnya">Lainnya</option></select></td><td><input type="text" class="input-nama" placeholder="Nama detail" required /></td><td><input type="number" class="input-qty" min="0" step="0.01" value="0" required /></td><td><input type="number" class="input-harga" min="0" step="any" value="0" required /></td><td class="cell-subtotal">${formatRupiah(0)}</td><td><button type="button" class="btn-remove-row">X</button></td>`;
     itemsBody.appendChild(tr);
     tr.querySelector('.btn-remove-row').addEventListener('click',()=>{ tr.remove(); renumber(); calc(); });
     tr.querySelectorAll('.input-qty,.input-harga').forEach(inp=> inp.addEventListener('input',calc));
