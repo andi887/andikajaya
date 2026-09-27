@@ -1,8 +1,8 @@
-// js/dashboard.js - ANDIKA JAYA V2.1 - NO INDEX NEEDED + FIX ADMIN TABS
+// js/dashboard.js - ANDIKA JAYA V3.0 - FITUR PELUNASAN - NO INDEX + TAB FIX
 import { auth, db, secondaryAuth } from './firebase-config.js';
 import { formatRupiah, formatTanggal, formatTanggalShort, escapeHtml, generateNoNota } from './utils.js';
 import { onAuthStateChanged, signOut, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { collection, addDoc, doc, setDoc, getDoc, query, onSnapshot, serverTimestamp, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { collection, addDoc, doc, setDoc, getDoc, updateDoc, query, onSnapshot, serverTimestamp, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const JENIS_BARANG = ['Bandeng','KKB','Manyung','Tawar','Mubara','Bawel','Mondo','Daun','Kerong','Hiu','Ikan Merah','Banana','Tiger','Kputi','Sarisi','Lajur','Lasi','Toki','Tenggiri','Udang Tiger','Udang Biasa'];
 let currentUser=null, currentUserData=null;
@@ -17,19 +17,14 @@ onAuthStateChanged(auth, async (user)=>{
 
 function setupDashboard(){
   const isAdmin = (currentUserData.role||'').toLowerCase().trim() === 'admin';
-  console.log('IS ADMIN:', isAdmin, 'role=', currentUserData.role);
   document.getElementById('userName').textContent = currentUserData.name||'User';
   document.getElementById('headerSubtitle').textContent = isAdmin ? 'Panel Administrator' : 'Dashboard Supplier';
-  
-  // FIX ADMIN TABS - pakai class show
   document.querySelectorAll('.admin-only').forEach(el=>{
     if(isAdmin) el.classList.add('show');
     else el.classList.remove('show');
   });
-
   document.getElementById('notaTitle').textContent = isAdmin?'Semua Nota Pembelian':'Nota Pembelian Saya';
   document.getElementById('rekapTitle').textContent = isAdmin?'Rekap Keseluruhan':'Rekap Saya';
-  
   initTabs(); initLogout(); loadNotasNoIndex(); initChat();
   if(isAdmin){ initCreateUserFix(); loadUsersTableNoIndex(); initNotaFormFix(); loadUsersDropdown(); }
 }
@@ -69,7 +64,6 @@ function initCreateUserFix(){
 function loadUsersTableNoIndex(){
   const tbody=document.querySelector('#tableUsers tbody');
   if(!tbody) return;
-  // NO orderBy, sort client side - tidak butuh index
   onSnapshot(collection(db,'users'), snap=>{
     const users=[];
     snap.forEach(d=>{ if(d.data().role==='user') users.push(d.data()); });
@@ -96,7 +90,7 @@ function initNotaFormFix(){
   if(!itemsBody) return;
   function addRow(){
     const tr=document.createElement('tr');
-    tr.innerHTML=`<td class="row-no"></td><td><select class="input-jenis" required><option value="">Pilih</option>${JENIS_BARANG.map(j=>`<option value="${j}">${j}</option>`).join('')}<option value="Lainnya">Lainnya</option></select></td><td><input type="text" class="input-nama" placeholder="Nama detail" required /></td><td><input type="number" class="input-qty" min="0" step="0.01" value="0" required /></td><td><input type="number" class="input-harga" min="0" step="any" value="0" required /></td><td class="cell-subtotal">${formatRupiah(0)}</td><td><button type="button" class="btn-remove-row">X</button></td>`;
+    tr.innerHTML=`<td class="row-no"></td><td><select class="input-jenis" required><option value="">Pilih</option>${JENIS_BARANG.map(j=>`<option value="${j}">${j}</option>`).join('')}<option value="Lainnya">Lainnya</option></select></td><td><input type="text" class="input-nama" placeholder="Nama detail" required /></td><td><input type="number" class="input-qty" min="0" step="any" value="0" required /></td><td><input type="number" class="input-harga" min="0" step="any" value="0" required /></td><td class="cell-subtotal">${formatRupiah(0)}</td><td><button type="button" class="btn-remove-row">X</button></td>`;
     itemsBody.appendChild(tr);
     tr.querySelector('.btn-remove-row').addEventListener('click',()=>{ tr.remove(); renumber(); calc(); });
     tr.querySelectorAll('.input-qty,.input-harga').forEach(inp=> inp.addEventListener('input',calc));
@@ -135,14 +129,17 @@ function initNotaFormFix(){
     const userName=document.getElementById('notaUser').selectedOptions[0].dataset.name||'User';
     msg.textContent='Menyimpan...'; msg.className='message';
     try{
-      await addDoc(collection(db,'notas'),{noNota:generateNoNota(), userId, userName, tanggal:new Date(tanggal), items:rows, totalNota, createdBy:currentUser.uid, createdAt:serverTimestamp()});
-      msg.textContent='Nota berhasil disimpan!'; msg.className='message success';
+      await addDoc(collection(db,'notas'),{
+        noNota:generateNoNota(), userId, userName, tanggal:new Date(tanggal), items:rows, totalNota,
+        status:'belum_lunas',
+        createdBy:currentUser.uid, createdAt:serverTimestamp()
+      });
+      msg.textContent='Nota berhasil disimpan! Status: BELUM LUNAS'; msg.className='message success';
       e.target.reset(); itemsBody.innerHTML=''; addRow(); calc();
     }catch(ex){ msg.textContent='Gagal: '+ex.message; msg.className='message error'; }
   });
 }
 
-// LOAD NOTA TANPA BUTUH INDEX - FIX UTAMA
 function loadNotasNoIndex(){
   const tbody=document.querySelector('#tableNotas tbody');
   if(!tbody) return;
@@ -153,31 +150,66 @@ function loadNotasNoIndex(){
   onSnapshot(q, snap=>{
     let all=[];
     snap.forEach(d=> all.push({id:d.id, ...d.data()}));
-    // Sort di client, tidak di server - jadi tidak butuh index
     all.sort((a,b)=> (b.createdAt?.toMillis?.()||0) - (a.createdAt?.toMillis?.()||0));
     
     tbody.innerHTML='';
-    if(all.length===0){ tbody.innerHTML='<tr><td colspan="5" style="text-align:center;">Belum ada nota. Silakan input di tab Input Nota.</td></tr>'; updateRekap([]); return; }
+    if(all.length===0){ tbody.innerHTML='<tr><td colspan="6" style="text-align:center;">Belum ada nota. Silakan input di tab Input Nota.</td></tr>'; updateRekap([]); return; }
     all.forEach((n,idx)=>{
+      const status = n.status || 'belum_lunas';
+      const isLunas = status === 'lunas';
+      const badge = isLunas ? '<span class="badge badge-lunas">LUNAS</span>' : '<span class="badge badge-belum">BELUM</span>';
+      let actionBtns = `<button class="btn-view" data-id="${n.id}">Lihat</button><button class="btn-print" data-id="${n.id}">Cetak</button>`;
+      if(isAdmin){
+        if(isLunas) actionBtns += `<button class="btn-batal" data-id="${n.id}">Batal Lunas</button>`;
+        else actionBtns += `<button class="btn-lunas" data-id="${n.id}">Lunasi</button>`;
+      }
       const tr=document.createElement('tr');
-      tr.innerHTML=`<td>${idx+1}</td><td>${formatTanggalShort(n.tanggal)}</td><td class="col-user ${isAdmin?'show':''}" style="${isAdmin?'':'display:none'}">${escapeHtml(n.userName)}</td><td>${formatRupiah(n.totalNota)}</td><td><button class="btn-view" data-id="${n.id}">Lihat</button><button class="btn-print" data-id="${n.id}">Cetak</button></td>`;
+      tr.innerHTML=`<td>${idx+1}</td><td>${formatTanggalShort(n.tanggal)}</td><td class="col-user ${isAdmin?'show':''}" style="${isAdmin?'':'display:none'}">${escapeHtml(n.userName)}</td><td>${formatRupiah(n.totalNota)}</td><td>${badge}</td><td>${actionBtns}</td>`;
       tbody.appendChild(tr);
     });
     tbody.querySelectorAll('.btn-view').forEach(b=> b.addEventListener('click',()=> showNotaDetail(b.dataset.id)));
     tbody.querySelectorAll('.btn-print').forEach(b=> b.addEventListener('click',()=> showNotaDetail(b.dataset.id,true)));
+    tbody.querySelectorAll('.btn-lunas').forEach(b=> b.addEventListener('click',()=> tandaiLunas(b.dataset.id)));
+    tbody.querySelectorAll('.btn-batal').forEach(b=> b.addEventListener('click',()=> batalLunas(b.dataset.id)));
     updateRekap(all);
   }, err=>{
     console.error(err);
-    tbody.innerHTML=`<tr><td colspan="5" style="color:red;text-align:center;">Error: ${err.message}<br/>Klik link di Console untuk buat index atau pakai file V2.1 ini (sudah fix)</td></tr>`;
+    tbody.innerHTML=`<tr><td colspan="6" style="color:red;text-align:center;">Error: ${err.message}</td></tr>`;
   });
+}
+
+async function tandaiLunas(id){
+  if(!confirm('Tandai nota ini sebagai LUNAS?\n\nNota bisa dilunasi kapan saja, bahkan 1 minggu/bulan setelah dibuat.')) return;
+  try{
+    await updateDoc(doc(db,'notas',id),{
+      status:'lunas',
+      lunasAt: serverTimestamp(),
+      lunasBy: currentUser.uid
+    });
+  }catch(e){ alert('Gagal: '+e.message); }
+}
+async function batalLunas(id){
+  if(!confirm('Batalkan pelunasan? Nota jadi BELUM LUNAS lagi.')) return;
+  try{
+    await updateDoc(doc(db,'notas',id),{
+      status:'belum_lunas',
+      lunasAt: null,
+      lunasBy: null
+    });
+  }catch(e){ alert('Gagal: '+e.message); }
 }
 
 function showNotaDetail(id, autoPrint=false){
   getDoc(doc(db,'notas',id)).then(snap=>{
     if(!snap.exists()){ alert('Nota tidak ditemukan'); return; }
     const n=snap.data();
+    const status = n.status || 'belum_lunas';
     document.getElementById('notaKepada').textContent=n.userName||'-';
     document.getElementById('notaTanggalDetail').textContent=formatTanggal(n.tanggal)+(n.noNota?' | No: '+n.noNota:'');
+    const statusEl=document.getElementById('notaStatusDetail');
+    if(statusEl){
+      statusEl.innerHTML = status==='lunas' ? '<span class="badge badge-lunas">LUNAS</span> - '+formatTanggal(n.lunasAt) : '<span class="badge badge-belum">BELUM LUNAS</span>';
+    }
     const tbody=document.querySelector('#tableNotaDetail tbody'); tbody.innerHTML=''; let total=0;
     (n.items||[]).forEach((it,i)=>{ total+=it.subtotal||0; tbody.innerHTML+=`<tr><td>${i+1}</td><td>${formatTanggalShort(n.tanggal)}</td><td>${escapeHtml(it.jenis)} - ${escapeHtml(it.namaBarang)}</td><td>${(it.qtyKg||0).toFixed(2)}</td><td>${formatRupiah(it.hargaPerKg)}</td><td>${formatRupiah(it.subtotal)}</td></tr>`; });
     document.getElementById('notaTotalDetail').textContent=formatRupiah(total);
@@ -191,15 +223,31 @@ document.getElementById('btnPrintNota')?.addEventListener('click',()=> window.pr
 
 function updateRekap(notas){
   const isAdmin=(currentUserData.role||'').toLowerCase().trim()==='admin';
-  let gTrans=notas.length, gBerat=0, gNom=0;
-  notas.forEach(n=>{ (n.items||[]).forEach(it=>{ gBerat+=it.qtyKg||0; }); gNom+=n.totalNota||0; });
-  document.getElementById('rekapTotalTransaksi').textContent=gTrans;
-  document.getElementById('rekapTotalBerat').textContent=gBerat.toFixed(2)+' Kg';
-  document.getElementById('rekapGrandTotal').textContent=formatRupiah(gNom);
+  let gTrans=notas.length, gBerat=0, gNom=0, gLunasCount=0, gBelumCount=0, gPiutang=0;
+  notas.forEach(n=>{
+    (n.items||[]).forEach(it=>{ gBerat+=it.qtyKg||0; });
+    gNom+=n.totalNota||0;
+    const st = n.status || 'belum_lunas';
+    if(st==='lunas') gLunasCount++;
+    else { gBelumCount++; gPiutang+=n.totalNota||0; }
+  });
+  const elTrans=document.getElementById('rekapTotalTransaksi'); if(elTrans) elTrans.textContent=gTrans;
+  const elBerat=document.getElementById('rekapTotalBerat'); if(elBerat) elBerat.textContent=gBerat.toFixed(2)+' Kg';
+  const elBelum=document.getElementById('rekapBelumLunas'); if(elBelum) elBelum.textContent=gBelumCount+' nota';
+  const elLunas=document.getElementById('rekapLunas'); if(elLunas) elLunas.textContent=gLunasCount+' nota';
+  const elGrand=document.getElementById('rekapGrandTotal'); if(elGrand) elGrand.textContent=formatRupiah(gPiutang);
+  const elLabel=document.getElementById('rekapGrandTotalLabel'); if(elLabel) elLabel.textContent='Sisa Piutang (Rp)';
+
   if(isAdmin){
     const perUser={};
-    notas.forEach(n=>{ if(!perUser[n.userId]) perUser[n.userId]={name:n.userName,count:0,berat:0,nominal:0}; perUser[n.userId].count++; perUser[n.userId].nominal+=n.totalNota||0; (n.items||[]).forEach(it=> perUser[n.userId].berat+=it.qtyKg||0); });
-    const tbody=document.querySelector('#tableRekap tbody'); if(tbody){ tbody.innerHTML=''; let i=0; Object.values(perUser).forEach(r=>{ i++; tbody.innerHTML+=`<tr><td>${i}</td><td>${escapeHtml(r.name)}</td><td>${r.count}</td><td>${r.berat.toFixed(2)}</td><td>${formatRupiah(r.nominal)}</td></tr>`; }); }
+    notas.forEach(n=>{
+      if(!perUser[n.userId]) perUser[n.userId]={name:n.userName,count:0,berat:0,nominal:0,lunas:0,belum:0,piutang:0};
+      perUser[n.userId].count++; perUser[n.userId].nominal+=n.totalNota||0;
+      (n.items||[]).forEach(it=> perUser[n.userId].berat+=it.qtyKg||0);
+      if((n.status||'belum_lunas')==='lunas') perUser[n.userId].lunas++;
+      else { perUser[n.userId].belum++; perUser[n.userId].piutang+=n.totalNota||0; }
+    });
+    const tbody=document.querySelector('#tableRekap tbody'); if(tbody){ tbody.innerHTML=''; let i=0; Object.values(perUser).forEach(r=>{ i++; tbody.innerHTML+=`<tr><td>${i}</td><td>${escapeHtml(r.name)}</td><td>${r.count} (${r.lunas} lunas, ${r.belum} belum)</td><td>${r.berat.toFixed(2)}</td><td>${formatRupiah(r.nominal)}<br/><small style="color:#c0392b;">Piutang: ${formatRupiah(r.piutang)}</small></td></tr>`; }); }
   }
 }
 
