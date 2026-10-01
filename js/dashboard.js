@@ -1,4 +1,4 @@
-// js/dashboard.js - ANDIKA JAYA V3.0 - FITUR PELUNASAN - NO INDEX + TAB FIX
+// js/dashboard.js - ANDIKA JAYA V4.0 - MULTI-TANGGAL PER BARIS + PELUNASAN + ANTI-NUMPUK + NO-INDEX
 import { auth, db, secondaryAuth } from './firebase-config.js';
 import { formatRupiah, formatTanggal, formatTanggalShort, escapeHtml, generateNoNota } from './utils.js';
 import { onAuthStateChanged, signOut, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -88,9 +88,10 @@ function initNotaFormFix(){
   const itemsBody=document.getElementById('itemsBody');
   const btnAdd=document.getElementById('btnAddRow');
   if(!itemsBody) return;
+  function todayISO(){ return new Date().toISOString().split('T')[0]; }
   function addRow(){
     const tr=document.createElement('tr');
-    tr.innerHTML=`<td class="row-no"></td><td><select class="input-jenis" required><option value="">Pilih</option>${JENIS_BARANG.map(j=>`<option value="${j}">${j}</option>`).join('')}<option value="Lainnya">Lainnya</option></select></td><td><input type="text" class="input-nama" placeholder="Nama detail" required /></td><td><input type="number" class="input-qty" min="0" step="any" value="0" required /></td><td><input type="number" class="input-harga" min="0" step="any" value="0" required /></td><td class="cell-subtotal">${formatRupiah(0)}</td><td><button type="button" class="btn-remove-row">X</button></td>`;
+    tr.innerHTML=`<td class="row-no"></td><td><select class="input-jenis" required><option value="">Pilih</option>${JENIS_BARANG.map(j=>`<option value="${j}">${j}</option>`).join('')}<option value="Lainnya">Lainnya</option></select></td><td><input type="date" class="input-tanggal" required value="${todayISO()}" /></td><td><input type="number" class="input-qty" min="0" step="any" value="0" required /></td><td><input type="number" class="input-harga" min="0" step="any" value="0" required /></td><td class="cell-subtotal">${formatRupiah(0)}</td><td><button type="button" class="btn-remove-row">X</button></td>`;
     itemsBody.appendChild(tr);
     tr.querySelector('.btn-remove-row').addEventListener('click',()=>{ tr.remove(); renumber(); calc(); });
     tr.querySelectorAll('.input-qty,.input-harga').forEach(inp=> inp.addEventListener('input',calc));
@@ -115,29 +116,62 @@ function initNotaFormFix(){
     e.preventDefault();
     const msg=document.getElementById('notaMessage');
     const userId=document.getElementById('notaUser').value;
-    const tanggal=document.getElementById('notaTanggal').value;
-    if(!userId||!tanggal){ msg.textContent='Pilih user dan tanggal'; msg.className='message error'; return; }
-    const rows=[]; let err=false;
+    if(!userId){ msg.textContent='Pilih user'; msg.className='message error'; return; }
+    const rows=[]; let err=false; let errMsg='';
     itemsBody.querySelectorAll('tr').forEach(tr=>{
-      const jenis=tr.querySelector('.input-jenis').value; const nama=tr.querySelector('.input-nama').value.trim();
-      const qty=parseFloat(tr.querySelector('.input-qty').value)||0; const harga=parseFloat(tr.querySelector('.input-harga').value)||0;
-      if(!jenis||!nama||qty<=0||harga<=0) err=true;
-      rows.push({jenis,namaBarang:nama,qtyKg:qty,hargaPerKg:harga,subtotal:qty*harga});
+      const jenis=tr.querySelector('.input-jenis').value;
+      const tglVal=tr.querySelector('.input-tanggal').value;
+      const qty=parseFloat(tr.querySelector('.input-qty').value)||0;
+      const harga=parseFloat(tr.querySelector('.input-harga').value)||0;
+      if(!jenis||!tglVal||qty<=0||harga<=0){ err=true; errMsg='Lengkapi jenis, tanggal, berat, harga'; }
+      rows.push({jenis, tanggal: new Date(tglVal), qtyKg:qty, hargaPerKg:harga, subtotal:qty*harga});
     });
-    if(err||rows.length===0){ msg.textContent='Lengkapi semua baris'; msg.className='message error'; return; }
+    if(err||rows.length===0){ msg.textContent=errMsg||'Lengkapi semua baris'; msg.className='message error'; return; }
     const totalNota=rows.reduce((s,r)=>s+r.subtotal,0);
     const userName=document.getElementById('notaUser').selectedOptions[0].dataset.name||'User';
+    // Ambil tanggal nota dari tanggal pertama untuk backward compatibility
+    const firstTanggal = rows[0].tanggal;
     msg.textContent='Menyimpan...'; msg.className='message';
     try{
       await addDoc(collection(db,'notas'),{
-        noNota:generateNoNota(), userId, userName, tanggal:new Date(tanggal), items:rows, totalNota,
+        noNota:generateNoNota(),
+        userId, userName,
+        tanggal: firstTanggal,
+        tanggalAwal: rows.reduce((a,b)=> a<b.tanggal?a:b.tanggal, rows[0].tanggal),
+        tanggalAkhir: rows.reduce((a,b)=> a>b.tanggal?a:b.tanggal, rows[0].tanggal),
+        items:rows,
+        totalNota,
         status:'belum_lunas',
         createdBy:currentUser.uid, createdAt:serverTimestamp()
       });
-      msg.textContent='Nota berhasil disimpan! Status: BELUM LUNAS'; msg.className='message success';
+      msg.textContent='Nota multi-tanggal berhasil disimpan! Status: BELUM LUNAS'; msg.className='message success';
       e.target.reset(); itemsBody.innerHTML=''; addRow(); calc();
+      // restore user dropdown after reset
+      setTimeout(()=> loadUsersDropdown(), 300);
     }catch(ex){ msg.textContent='Gagal: '+ex.message; msg.className='message error'; }
   });
+}
+
+// Helper untuk dapatkan rentang tanggal dari items
+function getTanggalDisplay(nota){
+  if(nota.items && nota.items.length>0 && nota.items[0].tanggal){
+    // V4 format - items punya tanggal
+    const dates = nota.items.map(it=> {
+      const d = it.tanggal;
+      if(!d) return null;
+      if(d.toDate) return d.toDate();
+      if(d instanceof Date) return d;
+      // Firestore timestamp
+      try{ return new Date(d); }catch{return null;}
+    }).filter(Boolean);
+    if(dates.length===0) return formatTanggalShort(nota.tanggal);
+    dates.sort((a,b)=>a-b);
+    const first = dates[0], last = dates[dates.length-1];
+    if(first.toDateString()===last.toDateString()) return formatTanggalShort(first);
+    return formatTanggalShort(first)+' - '+formatTanggalShort(last);
+  }
+  // Fallback V3 lama
+  return formatTanggalShort(nota.tanggal);
 }
 
 function loadNotasNoIndex(){
@@ -163,8 +197,9 @@ function loadNotasNoIndex(){
         if(isLunas) actionBtns += `<button class="btn-batal" data-id="${n.id}">Batal Lunas</button>`;
         else actionBtns += `<button class="btn-lunas" data-id="${n.id}">Lunasi</button>`;
       }
+      const tglDisplay = getTanggalDisplay(n);
       const tr=document.createElement('tr');
-      tr.innerHTML=`<td>${idx+1}</td><td>${formatTanggalShort(n.tanggal)}</td><td class="col-user ${isAdmin?'show':''}" style="${isAdmin?'':'display:none'}">${escapeHtml(n.userName)}</td><td>${formatRupiah(n.totalNota)}</td><td>${badge}</td><td>${actionBtns}</td>`;
+      tr.innerHTML=`<td>${idx+1}</td><td>${tglDisplay}</td><td class="col-user ${isAdmin?'show':''}" style="${isAdmin?'':'display:none'}">${escapeHtml(n.userName)}</td><td>${formatRupiah(n.totalNota)}</td><td>${badge}</td><td>${actionBtns}</td>`;
       tbody.appendChild(tr);
     });
     tbody.querySelectorAll('.btn-view').forEach(b=> b.addEventListener('click',()=> showNotaDetail(b.dataset.id)));
@@ -205,13 +240,19 @@ function showNotaDetail(id, autoPrint=false){
     const n=snap.data();
     const status = n.status || 'belum_lunas';
     document.getElementById('notaKepada').textContent=n.userName||'-';
-    document.getElementById('notaTanggalDetail').textContent=formatTanggal(n.tanggal)+(n.noNota?' | No: '+n.noNota:'');
+    document.getElementById('notaTanggalDetail').textContent=getTanggalDisplay(n)+(n.noNota?' | No: '+n.noNota:'');
     const statusEl=document.getElementById('notaStatusDetail');
     if(statusEl){
       statusEl.innerHTML = status==='lunas' ? '<span class="badge badge-lunas">LUNAS</span> - '+formatTanggal(n.lunasAt) : '<span class="badge badge-belum">BELUM LUNAS</span>';
     }
     const tbody=document.querySelector('#tableNotaDetail tbody'); tbody.innerHTML=''; let total=0;
-    (n.items||[]).forEach((it,i)=>{ total+=it.subtotal||0; tbody.innerHTML+=`<tr><td>${i+1}</td><td>${formatTanggalShort(n.tanggal)}</td><td>${escapeHtml(it.jenis)} - ${escapeHtml(it.namaBarang)}</td><td>${(it.qtyKg||0).toFixed(2)}</td><td>${formatRupiah(it.hargaPerKg)}</td><td>${formatRupiah(it.subtotal)}</td></tr>`; });
+    (n.items||[]).forEach((it,i)=>{
+      total+=it.subtotal||0;
+      // Support both old and new format
+      const tgl = it.tanggal ? formatTanggalShort(it.tanggal) : formatTanggalShort(n.tanggal);
+      const jenisDisplay = it.jenis + (it.namaBarang ? ' - '+escapeHtml(it.namaBarang) : '');
+      tbody.innerHTML+=`<tr><td>${i+1}</td><td>${tgl}</td><td>${escapeHtml(it.jenis)}${it.namaBarang?' - '+escapeHtml(it.namaBarang):''}</td><td>${(it.qtyKg||0).toFixed(2)}</td><td>${formatRupiah(it.hargaPerKg)}</td><td>${formatRupiah(it.subtotal)}</td></tr>`;
+    });
     document.getElementById('notaTotalDetail').textContent=formatRupiah(total);
     document.getElementById('notaDetailWrapper').style.display='block';
     document.getElementById('notaDetailWrapper').scrollIntoView({behavior:'smooth'});
